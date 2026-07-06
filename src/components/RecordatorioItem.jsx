@@ -1,12 +1,12 @@
 import { estaVencido, formatearFecha } from '../utils/recordatorios'
-import { hablar } from '../utils/hablar'
+import { hablar, fraseRecordatorio } from '../utils/hablar'
 
 export default function RecordatorioItem({ r, onCompletar, onEditar, onEliminar }) {
   const vencido = estaVencido(r)
 
   function escuchar(e) {
     e.stopPropagation()
-    hablar(r.detalle ? `${r.titulo}. ${r.detalle}` : r.titulo)
+    hablar(fraseRecordatorio(r))
   }
 
   return (

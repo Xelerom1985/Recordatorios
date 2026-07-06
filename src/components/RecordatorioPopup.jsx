@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { hablar, detenerHabla } from '../utils/hablar'
+import { hablar, detenerHabla, fraseRecordatorio } from '../utils/hablar'
 
 export default function RecordatorioPopup({ r, onCerrar }) {
   const [hablando, setHablando] = useState(false)
 
   function escuchar() {
-    const texto = r.detalle ? `${r.titulo}. ${r.detalle}` : r.titulo
-    setHablando(hablar(texto, () => setHablando(false)))
+    setHablando(hablar(fraseRecordatorio(r), () => setHablando(false)))
   }
 
   function cerrar() {
