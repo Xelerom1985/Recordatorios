@@ -76,13 +76,16 @@ export function parseVoz(textoOriginal) {
 
   // --- Hora explícita: "a las 5", "a las 17:30", "a las 5 y media de la tarde" ---
   if (!resultado.hora) {
-    const horaMatch = texto.match(
-      /\ba las?\s+(\d{1,2})(?::(\d{2})|\s+y\s+media)?\s*(de la ma[ñn]ana|de la tarde|de la noche|am|pm)?/,
+    const horaConLasMatch = texto.match(
+      /\ba las?\s+(\d{1,2})(?::(\d{2})|\s+y\s+media)?\s*(de la ma[ñn]ana|de la tarde|de la noche|am|pm)?\s*(?:hs\.?|horas?)?/,
     )
+    const horaConSufijoMatch = !horaConLasMatch && texto.match(/\b(\d{1,2})(?::(\d{2}))?\s*(?:hs\.?|horas?)\b/)
+    const horaMatch = horaConLasMatch || horaConSufijoMatch
+
     if (horaMatch) {
       let h = parseInt(horaMatch[1], 10)
       let m = horaMatch[2] ? parseInt(horaMatch[2], 10) : /y\s+media/.test(horaMatch[0]) ? 30 : 0
-      const periodo = horaMatch[3]
+      const periodo = horaConLasMatch?.[3]
       if (periodo && /(tarde|noche|pm)/.test(periodo) && h < 12) h += 12
       if (periodo && /(ma[ñn]ana|am)/.test(periodo) && h === 12) h = 0
       resultado.hora = horaISO(h, m)
