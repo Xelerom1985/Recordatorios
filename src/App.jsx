@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
+import { useRegisterSW } from 'virtual:pwa-register/react'
 import { db, ref, onValue, push, update, remove } from './firebase'
 import { activarNotificaciones } from './notifications'
 import { estaVencido, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
 import RecordatorioForm from './components/RecordatorioForm'
 import RecordatorioItem from './components/RecordatorioItem'
 import RecordatorioPopup from './components/RecordatorioPopup'
+import UpdateBanner from './components/UpdateBanner'
 
 const claveAviso = (r) => `${r.id}:${r.fecha}`
 
 function App() {
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW()
   const [recordatorios, setRecordatorios] = useState([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
@@ -131,6 +137,8 @@ function App() {
       {colaAvisos.length > 0 && (
         <RecordatorioPopup r={colaAvisos[0]} onCerrar={() => setColaAvisos((cola) => cola.slice(1))} />
       )}
+
+      {needRefresh && <UpdateBanner onUpdate={() => updateServiceWorker(true)} />}
     </div>
   )
 }
