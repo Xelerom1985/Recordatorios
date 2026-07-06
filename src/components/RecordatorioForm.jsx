@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useDictado } from '../utils/useDictado'
+import { parseVoz } from '../utils/parseVoz'
 
 const HOY = new Date().toISOString().slice(0, 10)
 
@@ -9,6 +11,20 @@ export default function RecordatorioForm({ onGuardar, onCerrar, inicial }) {
   const [hora, setHora] = useState(inicial?.hora || '09:00')
   const [recurrente, setRecurrente] = useState(inicial?.recurrente || false)
   const [frecuencia, setFrecuencia] = useState(inicial?.frecuencia || 'diario')
+  const { escuchando, soportado, iniciar } = useDictado()
+
+  function handleDictado() {
+    iniciar((texto) => {
+      const parsed = parseVoz(texto)
+      if (parsed.titulo) setTitulo(parsed.titulo)
+      if (parsed.fecha) setFecha(parsed.fecha)
+      if (parsed.hora) setHora(parsed.hora)
+      if (parsed.recurrente) {
+        setRecurrente(true)
+        setFrecuencia(parsed.frecuencia)
+      }
+    })
+  }
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -31,13 +47,33 @@ export default function RecordatorioForm({ onGuardar, onCerrar, inicial }) {
       >
         <h2 className="text-lg font-semibold">{inicial ? 'Editar recordatorio' : 'Nuevo recordatorio'}</h2>
 
-        <input
-          autoFocus
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          placeholder="¿Qué querés recordar?"
-          className="bg-[var(--bg2)] rounded-lg px-3 py-2 outline-none focus:ring-2 ring-[var(--accent)]"
-        />
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="¿Qué querés recordar?"
+            className="flex-1 min-w-0 bg-[var(--bg2)] rounded-lg px-3 py-2 outline-none focus:ring-2 ring-[var(--accent)]"
+          />
+          {soportado && (
+            <button
+              type="button"
+              onClick={handleDictado}
+              aria-label="Dictar por voz"
+              className={`w-11 h-11 flex-shrink-0 rounded-lg flex items-center justify-center text-lg ${
+                escuchando ? 'bg-[var(--danger)] animate-pulse' : 'bg-[var(--bg2)]'
+              }`}
+            >
+              🎤
+            </button>
+          )}
+        </div>
+        {escuchando && <p className="text-xs text-[var(--accent2)] -mt-2">Escuchando…</p>}
+        {!inicial && (
+          <p className="text-xs text-[var(--muted)] -mt-2">
+            Ej: "recordame mañana a las 5 llamar al dentista"
+          </p>
+        )}
 
         <textarea
           value={detalle}
