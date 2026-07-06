@@ -1,22 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { db, ref, onValue, push, update, remove } from './firebase'
 import { activarNotificaciones } from './notifications'
-import { ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
+import { estaVencido, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
 import RecordatorioForm from './components/RecordatorioForm'
 import RecordatorioItem from './components/RecordatorioItem'
+import RecordatorioPopup from './components/RecordatorioPopup'
+
+const claveAviso = (r) => `${r.id}:${r.fecha}`
 
 function App() {
   const [recordatorios, setRecordatorios] = useState([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [notifPermitidas, setNotifPermitidas] = useState(Notification?.permission === 'granted')
+  const [colaAvisos, setColaAvisos] = useState([])
+  const recordatoriosRef = useRef([])
+  const avisadosRef = useRef(new Set())
+  const inicializadoRef = useRef(false)
 
   useEffect(() => {
     const unsub = onValue(ref(db, 'recordatorios'), (snap) => {
       const data = snap.val() || {}
-      setRecordatorios(Object.entries(data).map(([id, r]) => ({ id, ...r })))
+      const lista = Object.entries(data).map(([id, r]) => ({ id, ...r }))
+      setRecordatorios(lista)
+      recordatoriosRef.current = lista
+      if (!inicializadoRef.current) {
+        avisadosRef.current = new Set(lista.filter(estaVencido).map(claveAviso))
+        inicializadoRef.current = true
+      }
     })
     return () => unsub()
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const nuevos = recordatoriosRef.current.filter(
+        (r) => (!r.completado || r.recurrente) && estaVencido(r) && !avisadosRef.current.has(claveAviso(r)),
+      )
+      if (nuevos.length > 0) {
+        nuevos.forEach((r) => avisadosRef.current.add(claveAviso(r)))
+        setColaAvisos((cola) => [...cola, ...nuevos])
+      }
+    }, 15000)
+    return () => clearInterval(id)
   }, [])
 
   async function handleActivarNotif() {
@@ -100,6 +126,10 @@ function App() {
             setEditando(null)
           }}
         />
+      )}
+
+      {colaAvisos.length > 0 && (
+        <RecordatorioPopup r={colaAvisos[0]} onCerrar={() => setColaAvisos((cola) => cola.slice(1))} />
       )}
     </div>
   )

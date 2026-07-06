@@ -1,7 +1,13 @@
 import { estaVencido, formatearFecha } from '../utils/recordatorios'
+import { hablar } from '../utils/hablar'
 
 export default function RecordatorioItem({ r, onCompletar, onEditar, onEliminar }) {
   const vencido = estaVencido(r)
+
+  function escuchar(e) {
+    e.stopPropagation()
+    hablar(r.detalle ? `${r.titulo}. ${r.detalle}` : r.titulo)
+  }
 
   return (
     <div
@@ -24,6 +30,10 @@ export default function RecordatorioItem({ r, onCompletar, onEditar, onEliminar 
           {formatearFecha(r.fecha)} · {r.hora}
           {r.recurrente && ` · 🔁 ${r.frecuencia}`}
         </p>
+      </button>
+
+      <button onClick={escuchar} className="text-[var(--muted)] px-1" aria-label="Escuchar">
+        🔊
       </button>
 
       <button onClick={() => onEliminar(r)} className="text-[var(--muted)] px-1" aria-label="Eliminar">
