@@ -41,7 +41,7 @@ export default function RecordatorioItem({ r, onHecho, onPostergar, onEditar, on
         </button>
         <button
           onClick={() => onPostergar(r)}
-          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-[var(--bg2)] text-[var(--text)]"
+          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-yellow-400 text-black"
         >
           Postergar
         </button>
