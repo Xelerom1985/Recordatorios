@@ -1,3 +1,5 @@
+import { useRef } from 'react'
+
 const ESTILOS = {
   personal: {
     activo: 'bg-green-500 border-green-500 text-white',
@@ -9,18 +11,44 @@ const ESTILOS = {
   },
 }
 
-export default function PerfilSwitcher({ perfil, onCambiar }) {
+export default function PerfilSwitcher({ perfil, nombres, onCambiar, onRenombrar }) {
+  const timerRef = useRef(null)
+  const presionoLargoRef = useRef(false)
+
+  function iniciarPress(p) {
+    presionoLargoRef.current = false
+    timerRef.current = setTimeout(() => {
+      presionoLargoRef.current = true
+      onRenombrar(p)
+    }, 600)
+  }
+
+  function cancelarPress() {
+    clearTimeout(timerRef.current)
+  }
+
+  function handleClick(p) {
+    if (presionoLargoRef.current) {
+      presionoLargoRef.current = false
+      return
+    }
+    onCambiar(p)
+  }
+
   return (
     <div className="pointer-events-auto flex gap-3">
       {['personal', 'laboral'].map((p) => (
         <button
           key={p}
-          onClick={() => onCambiar(p)}
-          className={`px-5 py-1.5 rounded-full text-sm font-semibold border-2 capitalize transition-colors ${
+          onClick={() => handleClick(p)}
+          onPointerDown={() => iniciarPress(p)}
+          onPointerUp={cancelarPress}
+          onPointerLeave={cancelarPress}
+          className={`px-5 py-1.5 rounded-full text-sm font-semibold border-2 transition-colors ${
             ESTILOS[p][perfil === p ? 'activo' : 'inactivo']
           }`}
         >
-          {p}
+          {nombres[p]}
         </button>
       ))}
     </div>

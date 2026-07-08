@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { db, ref, onValue, get, push, update, remove } from './firebase'
+import { db, ref, onValue, get, push, update, remove, auth, onAuthStateChanged, getRedirectResult, cerrarSesion } from './firebase'
 import { activarNotificaciones } from './notifications'
 import { estaVencido, esHoy, esFuturo, fechaLocalISO, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
 import { useDictado } from './utils/useDictado'
@@ -12,15 +12,19 @@ import ResumenCards, { FILTROS } from './components/ResumenCards'
 import PostergarSheet from './components/PostergarSheet'
 import PerfilSwitcher from './components/PerfilSwitcher'
 import UpdateBanner from './components/UpdateBanner'
+import LoginScreen from './components/LoginScreen'
 
 const claveAviso = (r) => `${r.id}:${r.fecha}`
+const NOMBRES_POR_DEFECTO = { personal: 'Personal', laboral: 'Laboral' }
 
 function App() {
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW()
+  const [usuario, setUsuario] = useState(undefined)
   const [recordatorios, setRecordatorios] = useState([])
+  const [nombresPerfiles, setNombresPerfiles] = useState(NOMBRES_POR_DEFECTO)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [notifPermitidas, setNotifPermitidas] = useState(Notification?.permission === 'granted')
@@ -35,7 +39,17 @@ function App() {
   const inicializadoRef = useRef(false)
 
   useEffect(() => {
-    const unsub = onValue(ref(db, 'recordatorios'), (snap) => {
+    getRedirectResult(auth).catch((err) => console.error('Error al completar el login:', err))
+    const unsub = onAuthStateChanged(auth, (u) => setUsuario(u))
+    return () => unsub()
+  }, [])
+
+  const uid = usuario?.uid
+
+  useEffect(() => {
+    if (!uid) return
+    inicializadoRef.current = false
+    const unsub = onValue(ref(db, `recordatorios/${uid}`), (snap) => {
       const data = snap.val() || {}
       const lista = Object.entries(data).map(([id, r]) => ({ id, ...r }))
       setRecordatorios(lista)
@@ -46,11 +60,27 @@ function App() {
       }
     })
     return () => unsub()
-  }, [])
+  }, [uid])
+
+  useEffect(() => {
+    if (!uid) return
+    const unsub = onValue(ref(db, `config/${uid}/perfiles`), (snap) => {
+      setNombresPerfiles({ ...NOMBRES_POR_DEFECTO, ...(snap.val() || {}) })
+    })
+    return () => unsub()
+  }, [uid])
 
   function cambiarPerfil(p) {
     setPerfilActivoState(p)
     localStorage.setItem('perfilActivo', p)
+  }
+
+  function renombrarPerfil(p) {
+    const actual = nombresPerfiles[p]
+    const nuevo = window.prompt('Nuevo nombre para este perfil:', actual)
+    if (nuevo && nuevo.trim()) {
+      update(ref(db, `config/${uid}/perfiles`), { [p]: nuevo.trim() })
+    }
   }
 
   function mostrarPopupPara(id) {
@@ -59,14 +89,15 @@ function App() {
   }
 
   useEffect(() => {
+    if (!uid) return
     if (Notification?.permission === 'granted') {
-      activarNotificaciones(mostrarPopupPara)
+      activarNotificaciones(uid, mostrarPopupPara)
         .then((token) => {
           if (token) setNotifPermitidas(true)
         })
         .catch((err) => console.error('No se pudo registrar el token de notificaciones:', err))
     }
-  }, [])
+  }, [uid])
 
   useEffect(() => {
     function onMensajeSW(event) {
@@ -77,13 +108,14 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!uid) return
     const id = new URLSearchParams(window.location.search).get('r')
     if (!id) return
     window.history.replaceState(null, '', window.location.pathname)
-    get(ref(db, `recordatorios/${id}`)).then((snap) => {
+    get(ref(db, `recordatorios/${uid}/${id}`)).then((snap) => {
       if (snap.exists()) setColaAvisos((cola) => [...cola, { id, ...snap.val() }])
     })
-  }, [])
+  }, [uid])
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -100,7 +132,7 @@ function App() {
 
   async function handleActivarNotif() {
     try {
-      const token = await activarNotificaciones(mostrarPopupPara)
+      const token = await activarNotificaciones(uid, mostrarPopupPara)
       if (token) setNotifPermitidas(true)
     } catch (err) {
       console.error(err)
@@ -110,9 +142,9 @@ function App() {
 
   function handleGuardar(datos) {
     if (editando) {
-      update(ref(db, `recordatorios/${editando.id}`), datos)
+      update(ref(db, `recordatorios/${uid}/${editando.id}`), datos)
     } else {
-      push(ref(db, 'recordatorios'), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
+      push(ref(db, `recordatorios/${uid}`), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
     }
     setMostrarForm(false)
     setEditando(null)
@@ -120,11 +152,11 @@ function App() {
 
   function handleHecho(r) {
     if (r.recurrente) {
-      update(ref(db, `recordatorios/${r.id}`), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
+      update(ref(db, `recordatorios/${uid}/${r.id}`), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
       return
     }
     if (confirm(`¿Marcar "${r.titulo}" como hecho? Se va a eliminar.`)) {
-      remove(ref(db, `recordatorios/${r.id}`))
+      remove(ref(db, `recordatorios/${uid}/${r.id}`))
     }
   }
 
@@ -148,7 +180,7 @@ function App() {
       hora = r.hora
     }
 
-    update(ref(db, `recordatorios/${r.id}`), { fecha, hora, notificadoFecha: null, completado: false })
+    update(ref(db, `recordatorios/${uid}/${r.id}`), { fecha, hora, notificadoEn: null, completado: false })
     setPostergando(null)
   }
 
@@ -160,7 +192,7 @@ function App() {
   function handleGuardarPorVoz(texto) {
     const parsed = parseVoz(texto)
     if (!parsed.titulo) return
-    push(ref(db, 'recordatorios'), {
+    push(ref(db, `recordatorios/${uid}`), {
       titulo: parsed.titulo,
       detalle: null,
       fecha: parsed.fecha || fechaLocalISO(),
@@ -184,8 +216,11 @@ function App() {
   }
 
   function handleEliminar(r) {
-    if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, `recordatorios/${r.id}`))
+    if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, `recordatorios/${uid}/${r.id}`))
   }
+
+  if (usuario === undefined) return null
+  if (usuario === null) return <LoginScreen />
 
   const activos = recordatorios.filter((r) => !r.completado && (r.perfil || 'laboral') === perfilActivo)
   const conteos = {
@@ -209,11 +244,16 @@ function App() {
     <div className="flex-1 flex flex-col px-4 pt-6 pb-24" data-perfil={perfilActivo}>
       <header className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-bold">Recordatorios</h1>
-        {!notifPermitidas && (
-          <button onClick={handleActivarNotif} className="text-sm text-[var(--accent2)]">
-            🔔 Activar avisos
+        <div className="flex items-center gap-3">
+          {!notifPermitidas && (
+            <button onClick={handleActivarNotif} className="text-sm text-[var(--accent2)]">
+              🔔 Activar avisos
+            </button>
+          )}
+          <button onClick={cerrarSesion} className="text-sm text-[var(--muted)]" aria-label="Cerrar sesión">
+            Salir
           </button>
-        )}
+        </div>
       </header>
       <p className="text-sm text-[var(--muted)] mb-5">
         {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -250,7 +290,12 @@ function App() {
       )}
 
       <div className="fixed bottom-0 inset-x-0 pb-6 pointer-events-none flex flex-col items-center gap-3">
-        <PerfilSwitcher perfil={perfilActivo} onCambiar={cambiarPerfil} />
+        <PerfilSwitcher
+          perfil={perfilActivo}
+          nombres={nombresPerfiles}
+          onCambiar={cambiarPerfil}
+          onRenombrar={renombrarPerfil}
+        />
         <div className="relative w-full max-w-[480px] mx-auto px-6 h-16 flex items-center justify-end">
           {grabandoRapido && (
             <p className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs text-[var(--danger)] whitespace-nowrap">

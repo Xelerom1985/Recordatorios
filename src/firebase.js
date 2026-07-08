@@ -1,9 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import { getDatabase, ref, onValue, get, set, update, push, remove } from 'firebase/database'
 import { getMessaging, isSupported } from 'firebase/messaging'
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth'
 
-// PENDIENTE: completar databaseURL cuando se cree la Realtime Database
-// en la consola de Firebase (Build > Realtime Database > Crear base de datos)
 const firebaseConfig = {
   apiKey: "AIzaSyBVHv3KrABiUf0sdKG7v5URZQIAxbFJfe0",
   authDomain: "recordatorios-faf.firebaseapp.com",
@@ -21,4 +20,17 @@ export { ref, onValue, get, set, update, push, remove }
 export async function getMessagingIfSupported() {
   if (await isSupported()) return getMessaging(app)
   return null
+}
+
+export const auth = getAuth(app)
+const googleProvider = new GoogleAuthProvider()
+
+export function iniciarSesionConGoogle() {
+  return signInWithRedirect(auth, googleProvider)
+}
+
+export { getRedirectResult, onAuthStateChanged }
+
+export function cerrarSesion() {
+  return signOut(auth)
 }
