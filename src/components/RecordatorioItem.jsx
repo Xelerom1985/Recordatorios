@@ -1,7 +1,7 @@
 import { estaVencido, formatearFecha } from '../utils/recordatorios'
 import { hablar, fraseRecordatorio } from '../utils/hablar'
 
-export default function RecordatorioItem({ r, onCompletar, onEditar, onEliminar }) {
+export default function RecordatorioItem({ r, onHecho, onPostergar, onEditar, onEliminar }) {
   const vencido = estaVencido(r)
 
   function escuchar(e) {
@@ -11,33 +11,47 @@ export default function RecordatorioItem({ r, onCompletar, onEditar, onEliminar 
 
   return (
     <div
-      className={`flex items-start gap-3 p-3 rounded-xl bg-[var(--card)] border ${
-        vencido ? 'border-[var(--danger)]/50' : 'border-transparent'
+      className={`flex flex-col gap-2 p-3 rounded-2xl bg-[var(--card)] border shadow-lg shadow-black/20 ${
+        vencido ? 'border-[var(--danger)]/50' : 'border-white/5'
       }`}
     >
+      <div className="flex items-start justify-between gap-1">
+        <button className="flex-1 min-w-0 text-left" onClick={() => onEditar(r)}>
+          <p className="font-semibold text-sm leading-snug line-clamp-2">{r.titulo}</p>
+        </button>
+        <button onClick={() => onEliminar(r)} className="text-[var(--muted)] shrink-0 text-xs px-1" aria-label="Eliminar">
+          ✕
+        </button>
+      </div>
+
+      {r.detalle && <p className="text-xs text-[var(--muted)] line-clamp-2">{r.detalle}</p>}
+
+      <p className={`text-xs ${vencido ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}`}>
+        {formatearFecha(r.fecha)} · {r.hora}
+        {r.recurrente && ' · 🔁'}
+      </p>
+
+      <div className="flex items-center gap-1.5 mt-1">
+        <button
+          onClick={escuchar}
+          aria-label="Escuchar"
+          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-amber-500 text-white"
+        >
+          🔊 Escuchar
+        </button>
+        <button
+          onClick={() => onPostergar(r)}
+          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-[var(--bg2)] text-[var(--text)]"
+        >
+          Postergar
+        </button>
+      </div>
+
       <button
-        onClick={() => onCompletar(r)}
-        className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 ${
-          r.completado ? 'bg-[var(--success)] border-[var(--success)]' : 'border-[var(--muted)]'
-        }`}
-        aria-label="Completar"
-      />
-
-      <button className="flex-1 text-left" onClick={() => onEditar(r)}>
-        <p className={`font-medium ${r.completado ? 'line-through text-[var(--muted)]' : ''}`}>{r.titulo}</p>
-        {r.detalle && <p className="text-sm text-[var(--muted)]">{r.detalle}</p>}
-        <p className={`text-xs mt-1 ${vencido ? 'text-[var(--danger)]' : 'text-[var(--muted)]'}`}>
-          {formatearFecha(r.fecha)} · {r.hora}
-          {r.recurrente && ` · 🔁 ${r.frecuencia}`}
-        </p>
-      </button>
-
-      <button onClick={escuchar} className="text-[var(--muted)] px-1" aria-label="Escuchar">
-        🔊
-      </button>
-
-      <button onClick={() => onEliminar(r)} className="text-[var(--muted)] px-1" aria-label="Eliminar">
-        ✕
+        onClick={() => onHecho(r)}
+        className="w-full text-xs font-semibold py-1.5 rounded-full bg-[var(--success)] text-white"
+      >
+        Hecho
       </button>
     </div>
   )

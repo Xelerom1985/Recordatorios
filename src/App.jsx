@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { db, ref, onValue, get, push, update, remove } from './firebase'
 import { activarNotificaciones } from './notifications'
-import { estaVencido, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
+import { estaVencido, esHoy, esFuturo, fechaLocalISO, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
+import { useDictado } from './utils/useDictado'
+import { parseVoz } from './utils/parseVoz'
 import RecordatorioForm from './components/RecordatorioForm'
 import RecordatorioItem from './components/RecordatorioItem'
 import RecordatorioPopup from './components/RecordatorioPopup'
+import ResumenCards, { FILTROS } from './components/ResumenCards'
+import PostergarSheet from './components/PostergarSheet'
 import UpdateBanner from './components/UpdateBanner'
 
 const claveAviso = (r) => `${r.id}:${r.fecha}`
@@ -20,6 +24,10 @@ function App() {
   const [editando, setEditando] = useState(null)
   const [notifPermitidas, setNotifPermitidas] = useState(Notification?.permission === 'granted')
   const [colaAvisos, setColaAvisos] = useState([])
+  const [vista, setVista] = useState(null)
+  const [postergando, setPostergando] = useState(null)
+  const [avisoGuardado, setAvisoGuardado] = useState(false)
+  const { escuchando: grabandoRapido, soportado: dictadoSoportado, iniciar: iniciarDictadoRapido } = useDictado()
   const recordatoriosRef = useRef([])
   const avisadosRef = useRef(new Set())
   const inicializadoRef = useRef(false)
@@ -103,12 +111,38 @@ function App() {
     setEditando(null)
   }
 
-  function handleCompletar(r) {
+  function handleHecho(r) {
     if (r.recurrente) {
       update(ref(db, `recordatorios/${r.id}`), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
-    } else {
-      update(ref(db, `recordatorios/${r.id}`), { completado: !r.completado })
+      return
     }
+    if (confirm(`¿Marcar "${r.titulo}" como hecho? Se va a eliminar.`)) {
+      remove(ref(db, `recordatorios/${r.id}`))
+    }
+  }
+
+  function handlePostergar(tipo, valor) {
+    const r = postergando
+    if (tipo === 'editar') {
+      setPostergando(null)
+      handleEditar(r)
+      return
+    }
+
+    let fecha, hora
+    if (tipo === 'minutos') {
+      const futuro = new Date(Date.now() + valor * 60000)
+      fecha = fechaLocalISO(futuro)
+      hora = `${String(futuro.getHours()).padStart(2, '0')}:${String(futuro.getMinutes()).padStart(2, '0')}`
+    } else {
+      const manana = new Date()
+      manana.setDate(manana.getDate() + 1)
+      fecha = fechaLocalISO(manana)
+      hora = r.hora
+    }
+
+    update(ref(db, `recordatorios/${r.id}`), { fecha, hora, notificadoFecha: null, completado: false })
+    setPostergando(null)
   }
 
   function handleEditar(r) {
@@ -116,49 +150,130 @@ function App() {
     setMostrarForm(true)
   }
 
+  function handleGuardarPorVoz(texto) {
+    const parsed = parseVoz(texto)
+    if (!parsed.titulo) return
+    push(ref(db, 'recordatorios'), {
+      titulo: parsed.titulo,
+      detalle: null,
+      fecha: parsed.fecha || fechaLocalISO(),
+      hora: parsed.hora || '09:00',
+      recurrente: !!parsed.recurrente,
+      frecuencia: parsed.recurrente ? parsed.frecuencia : null,
+      completado: false,
+      createdAt: Date.now(),
+    })
+    setAvisoGuardado(true)
+    setTimeout(() => setAvisoGuardado(false), 2000)
+  }
+
+  function handleMicPress() {
+    if (!dictadoSoportado) {
+      alert('Tu navegador no soporta dictado por voz.')
+      return
+    }
+    iniciarDictadoRapido(handleGuardarPorVoz)
+  }
+
   function handleEliminar(r) {
     if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, `recordatorios/${r.id}`))
   }
 
-  const lista = ordenarRecordatorios(recordatorios)
+  const activos = recordatorios.filter((r) => !r.completado)
+  const conteos = {
+    hoy: activos.filter(esHoy).length,
+    programados: activos.filter(esFuturo).length,
+    todos: activos.length,
+    recurrentes: activos.filter((r) => r.recurrente).length,
+  }
+  const filtrados =
+    vista === 'hoy'
+      ? activos.filter(esHoy)
+      : vista === 'programados'
+        ? activos.filter(esFuturo)
+        : vista === 'recurrentes'
+          ? activos.filter((r) => r.recurrente)
+          : activos
+  const lista = ordenarRecordatorios(filtrados)
+  const tituloVista = FILTROS.find((f) => f.id === vista)?.label
 
   return (
     <div className="flex-1 flex flex-col px-4 pt-6 pb-24">
-      <header className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Recordatorios</h1>
+      <header className="flex items-center justify-between mb-1">
+        <h1 className="text-2xl font-bold">Recordatorios</h1>
         {!notifPermitidas && (
           <button onClick={handleActivarNotif} className="text-sm text-[var(--accent2)]">
             🔔 Activar avisos
           </button>
         )}
       </header>
+      <p className="text-sm text-[var(--muted)] mb-5">
+        {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+      </p>
 
-      {lista.length === 0 && (
-        <p className="text-[var(--muted)] text-center mt-12">No tenés recordatorios todavía.</p>
+      {vista === null ? (
+        <ResumenCards conteos={conteos} onSeleccionar={setVista} />
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <button onClick={() => setVista(null)} aria-label="Volver" className="text-xl px-1 -ml-1">
+              ←
+            </button>
+            <h2 className="text-lg font-semibold">{tituloVista}</h2>
+          </div>
+
+          {lista.length === 0 && (
+            <p className="text-[var(--muted)] text-center mt-12">No tenés recordatorios acá.</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {lista.map((r) => (
+              <RecordatorioItem
+                key={r.id}
+                r={r}
+                onHecho={handleHecho}
+                onPostergar={setPostergando}
+                onEditar={handleEditar}
+                onEliminar={handleEliminar}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      <div className="flex flex-col gap-2">
-        {lista.map((r) => (
-          <RecordatorioItem
-            key={r.id}
-            r={r}
-            onCompletar={handleCompletar}
-            onEditar={handleEditar}
-            onEliminar={handleEliminar}
-          />
-        ))}
+      <div className="fixed bottom-0 inset-x-0 pb-6 pointer-events-none">
+        <div className="relative max-w-[480px] mx-auto px-6 h-16 flex items-center justify-end">
+          {grabandoRapido && (
+            <p className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs text-[var(--danger)] whitespace-nowrap">
+              🎙️ Escuchando…
+            </p>
+          )}
+          {avisoGuardado && (
+            <p className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs text-[var(--success)] whitespace-nowrap">
+              ✓ Guardado
+            </p>
+          )}
+          <button
+            onPointerDown={handleMicPress}
+            aria-label="Grabar recordatorio por voz"
+            className={`pointer-events-auto absolute left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[var(--danger)] text-white text-2xl shadow-lg shadow-black/40 flex items-center justify-center transition-transform ${
+              grabandoRapido ? 'scale-110 animate-pulse' : ''
+            }`}
+          >
+            🎤
+          </button>
+          <button
+            onClick={() => {
+              setEditando(null)
+              setMostrarForm(true)
+            }}
+            className="pointer-events-auto w-12 h-12 rounded-full bg-[var(--card)] border border-white/10 text-lg shadow-lg shadow-black/40 flex items-center justify-center"
+            aria-label="Nuevo recordatorio escrito"
+          >
+            📝
+          </button>
+        </div>
       </div>
-
-      <button
-        onClick={() => {
-          setEditando(null)
-          setMostrarForm(true)
-        }}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-[var(--accent)] text-white text-2xl shadow-lg"
-        aria-label="Nuevo recordatorio"
-      >
-        +
-      </button>
 
       {mostrarForm && (
         <RecordatorioForm
@@ -173,6 +288,10 @@ function App() {
 
       {colaAvisos.length > 0 && (
         <RecordatorioPopup r={colaAvisos[0]} onCerrar={() => setColaAvisos((cola) => cola.slice(1))} />
+      )}
+
+      {postergando && (
+        <PostergarSheet r={postergando} onPostergar={handlePostergar} onCerrar={() => setPostergando(null)} />
       )}
 
       {needRefresh && <UpdateBanner onUpdate={() => updateServiceWorker(true)} />}

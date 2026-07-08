@@ -6,6 +6,8 @@ const { getMessaging } = require('firebase-admin/messaging')
 
 initializeApp()
 
+const MINUTOS_ANTICIPACION = 15
+
 exports.checkRecordatorios = onSchedule(
   {
     schedule: 'every 1 minutes',
@@ -28,7 +30,8 @@ exports.checkRecordatorios = onSchedule(
       if (!r.recurrente && r.completado) continue
       if (r.notificadoFecha === r.fecha) continue
       const fechaHora = new Date(`${r.fecha}T${r.hora || '00:00'}:00-03:00`).getTime()
-      if (fechaHora > ahora) continue
+      const horaAviso = fechaHora - MINUTOS_ANTICIPACION * 60000
+      if (horaAviso > ahora) continue
 
       pendientes.push({ id, ...r })
       actualizaciones[`recordatorios/${id}/notificadoFecha`] = r.fecha
@@ -43,7 +46,10 @@ exports.checkRecordatorios = onSchedule(
           getMessaging()
             .send({
               token,
-              notification: { title: r.titulo, body: r.detalle || 'Tenés un recordatorio pendiente' },
+              notification: {
+                title: r.titulo,
+                body: r.detalle ? `En ${MINUTOS_ANTICIPACION} minutos · ${r.detalle}` : `En ${MINUTOS_ANTICIPACION} minutos`,
+              },
               data: { id: r.id },
             })
             .then(() => ({ titulo: r.titulo, token, ok: true }))
