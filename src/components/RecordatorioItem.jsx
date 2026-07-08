@@ -35,7 +35,7 @@ export default function RecordatorioItem({ r, onHecho, onPostergar, onEditar, on
         <button
           onClick={escuchar}
           aria-label="Escuchar"
-          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-amber-500 text-white"
+          className="flex-1 text-xs font-medium py-1.5 rounded-full bg-red-500 text-white"
         >
           🔊 Escuchar
         </button>
