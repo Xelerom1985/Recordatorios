@@ -10,6 +10,7 @@ import RecordatorioItem from './components/RecordatorioItem'
 import RecordatorioPopup from './components/RecordatorioPopup'
 import ResumenCards, { FILTROS } from './components/ResumenCards'
 import PostergarSheet from './components/PostergarSheet'
+import PerfilSwitcher from './components/PerfilSwitcher'
 import UpdateBanner from './components/UpdateBanner'
 
 const claveAviso = (r) => `${r.id}:${r.fecha}`
@@ -27,6 +28,7 @@ function App() {
   const [vista, setVista] = useState(null)
   const [postergando, setPostergando] = useState(null)
   const [avisoGuardado, setAvisoGuardado] = useState(false)
+  const [perfilActivo, setPerfilActivoState] = useState(() => localStorage.getItem('perfilActivo') || 'personal')
   const { escuchando: grabandoRapido, soportado: dictadoSoportado, iniciar: iniciarDictadoRapido } = useDictado()
   const recordatoriosRef = useRef([])
   const avisadosRef = useRef(new Set())
@@ -45,6 +47,11 @@ function App() {
     })
     return () => unsub()
   }, [])
+
+  function cambiarPerfil(p) {
+    setPerfilActivoState(p)
+    localStorage.setItem('perfilActivo', p)
+  }
 
   function mostrarPopupPara(id) {
     const r = recordatoriosRef.current.find((x) => x.id === id)
@@ -105,7 +112,7 @@ function App() {
     if (editando) {
       update(ref(db, `recordatorios/${editando.id}`), datos)
     } else {
-      push(ref(db, 'recordatorios'), { ...datos, completado: false, createdAt: Date.now() })
+      push(ref(db, 'recordatorios'), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
     }
     setMostrarForm(false)
     setEditando(null)
@@ -160,6 +167,7 @@ function App() {
       hora: parsed.hora || '09:00',
       recurrente: !!parsed.recurrente,
       frecuencia: parsed.recurrente ? parsed.frecuencia : null,
+      perfil: perfilActivo,
       completado: false,
       createdAt: Date.now(),
     })
@@ -179,7 +187,7 @@ function App() {
     if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, `recordatorios/${r.id}`))
   }
 
-  const activos = recordatorios.filter((r) => !r.completado)
+  const activos = recordatorios.filter((r) => !r.completado && (r.perfil || 'laboral') === perfilActivo)
   const conteos = {
     hoy: activos.filter(esHoy).length,
     programados: activos.filter(esFuturo).length,
@@ -198,7 +206,7 @@ function App() {
   const tituloVista = FILTROS.find((f) => f.id === vista)?.label
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-6 pb-24">
+    <div className="flex-1 flex flex-col px-4 pt-6 pb-24" data-perfil={perfilActivo}>
       <header className="flex items-center justify-between mb-1">
         <h1 className="text-2xl font-bold">Recordatorios</h1>
         {!notifPermitidas && (
@@ -241,8 +249,9 @@ function App() {
         </>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 pb-6 pointer-events-none">
-        <div className="relative max-w-[480px] mx-auto px-6 h-16 flex items-center justify-end">
+      <div className="fixed bottom-0 inset-x-0 pb-6 pointer-events-none flex flex-col items-center gap-3">
+        <PerfilSwitcher perfil={perfilActivo} onCambiar={cambiarPerfil} />
+        <div className="relative w-full max-w-[480px] mx-auto px-6 h-16 flex items-center justify-end">
           {grabandoRapido && (
             <p className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs text-[var(--danger)] whitespace-nowrap">
               🎙️ Escuchando…
