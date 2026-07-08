@@ -1,8 +1,8 @@
 # Pendientes — para retomar juntos, uno por uno
 
 1. ~~Agregar perfil Personal y Laboral~~ (hecho 2026-07-08)
-2. Botón Postergar
-3. Nueva reserva de horas: cambiar formato
+2. ~~Botón Postergar~~ (hecho 2026-07-08)
+3. ~~Nueva reserva de horas: cambiar formato~~ (hecho 2026-07-08)
 4. Averiguar tema repeticiones por mes: si respeta día y horario
 5. Averiguar cómo compartir la app con otra persona: ¿replica lo mismo o podemos generar 2 perfiles?
 6. Compartir recordatorios
