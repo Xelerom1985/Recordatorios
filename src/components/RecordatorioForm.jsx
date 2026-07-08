@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useDictado } from '../utils/useDictado'
 import { parseVoz } from '../utils/parseVoz'
 import { fechaLocalISO } from '../utils/recordatorios'
+import HoraInput from './HoraInput'
 
 const HOY = fechaLocalISO()
 
@@ -91,12 +92,7 @@ export default function RecordatorioForm({ onGuardar, onCerrar, inicial }) {
             onChange={(e) => setFecha(e.target.value)}
             className="flex-1 bg-[var(--bg2)] rounded-lg px-3 py-2 outline-none focus:ring-2 ring-[var(--accent)]"
           />
-          <input
-            type="time"
-            value={hora}
-            onChange={(e) => setHora(e.target.value)}
-            className="flex-1 bg-[var(--bg2)] rounded-lg px-3 py-2 outline-none focus:ring-2 ring-[var(--accent)]"
-          />
+          <HoraInput value={hora} onChange={setHora} />
         </div>
 
         <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
