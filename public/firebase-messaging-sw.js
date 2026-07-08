@@ -17,5 +17,24 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(payload.notification?.title || 'Recordatorio', {
     body: payload.notification?.body,
     icon: '/icon-192.png',
+    data: { id: payload.data?.id },
   })
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const id = event.notification.data?.id
+  const url = id ? `/?r=${id}` : '/'
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((lista) => {
+      for (const cliente of lista) {
+        if ('focus' in cliente) {
+          cliente.postMessage({ tipo: 'abrir-recordatorio', id })
+          return cliente.focus()
+        }
+      }
+      return self.clients.openWindow(url)
+    }),
+  )
 })

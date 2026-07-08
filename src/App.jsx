@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { db, ref, onValue, push, update, remove } from './firebase'
+import { db, ref, onValue, get, push, update, remove } from './firebase'
 import { activarNotificaciones } from './notifications'
 import { estaVencido, ordenarRecordatorios, siguienteFecha } from './utils/recordatorios'
 import RecordatorioForm from './components/RecordatorioForm'
@@ -38,14 +38,36 @@ function App() {
     return () => unsub()
   }, [])
 
+  function mostrarPopupPara(id) {
+    const r = recordatoriosRef.current.find((x) => x.id === id)
+    if (r) setColaAvisos((cola) => [...cola, r])
+  }
+
   useEffect(() => {
     if (Notification?.permission === 'granted') {
-      activarNotificaciones()
+      activarNotificaciones(mostrarPopupPara)
         .then((token) => {
           if (token) setNotifPermitidas(true)
         })
         .catch((err) => console.error('No se pudo registrar el token de notificaciones:', err))
     }
+  }, [])
+
+  useEffect(() => {
+    function onMensajeSW(event) {
+      if (event.data?.tipo === 'abrir-recordatorio' && event.data.id) mostrarPopupPara(event.data.id)
+    }
+    navigator.serviceWorker?.addEventListener('message', onMensajeSW)
+    return () => navigator.serviceWorker?.removeEventListener('message', onMensajeSW)
+  }, [])
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('r')
+    if (!id) return
+    window.history.replaceState(null, '', window.location.pathname)
+    get(ref(db, `recordatorios/${id}`)).then((snap) => {
+      if (snap.exists()) setColaAvisos((cola) => [...cola, { id, ...snap.val() }])
+    })
   }, [])
 
   useEffect(() => {
@@ -63,7 +85,7 @@ function App() {
 
   async function handleActivarNotif() {
     try {
-      const token = await activarNotificaciones()
+      const token = await activarNotificaciones(mostrarPopupPara)
       if (token) setNotifPermitidas(true)
     } catch (err) {
       console.error(err)

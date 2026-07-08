@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getDatabase, ref, onValue, set, update, push, remove } from 'firebase/database'
+import { getDatabase, ref, onValue, get, set, update, push, remove } from 'firebase/database'
 import { getMessaging, isSupported } from 'firebase/messaging'
 
 // PENDIENTE: completar databaseURL cuando se cree la Realtime Database
@@ -16,7 +16,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const db = getDatabase(app)
-export { ref, onValue, set, update, push, remove }
+export { ref, onValue, get, set, update, push, remove }
 
 export async function getMessagingIfSupported() {
   if (await isSupported()) return getMessaging(app)

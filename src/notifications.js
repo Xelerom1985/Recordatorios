@@ -3,7 +3,7 @@ import { db, ref, set, getMessagingIfSupported } from './firebase'
 
 const VAPID_KEY = 'BHN-TgWEPSGc5xl19Aj3ACQyKL8OO-lpb0CdSTWGirdNYHecTSWfbu4nz6uvvQ-DmPwD5bP_g7TOHY6a2Ti75hQ'
 
-export async function activarNotificaciones() {
+export async function activarNotificaciones(onRecordatorio) {
   const messaging = await getMessagingIfSupported()
   if (!messaging) throw new Error('Este navegador no soporta notificaciones push.')
 
@@ -23,10 +23,7 @@ export async function activarNotificaciones() {
   await set(ref(db, `tokens/${token}`), { createdAt: Date.now() })
 
   onMessage(messaging, (payload) => {
-    new Notification(payload.notification?.title || 'Recordatorio', {
-      body: payload.notification?.body,
-      icon: '/icon-192.png',
-    })
+    if (payload.data?.id) onRecordatorio?.(payload.data.id)
   })
 
   return token
