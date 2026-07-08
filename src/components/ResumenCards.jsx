@@ -1,8 +1,8 @@
 const FILTROS = [
-  { id: 'hoy', label: 'Hoy', icono: '📅', color: 'bg-blue-500' },
-  { id: 'programados', label: 'Programados', icono: '🗓️', color: 'bg-rose-500' },
-  { id: 'todos', label: 'Todos', icono: '📋', color: 'bg-slate-500' },
-  { id: 'recurrentes', label: 'Recurrentes', icono: '🔁', color: 'bg-amber-500' },
+  { id: 'hoy', label: 'Hoy', icono: '📅' },
+  { id: 'programados', label: 'Programados', icono: '🗓️' },
+  { id: 'todos', label: 'Todos', icono: '📋' },
+  { id: 'recurrentes', label: 'Recurrentes', icono: '🔁' },
 ]
 
 export { FILTROS }
@@ -17,7 +17,7 @@ export default function ResumenCards({ conteos, onSeleccionar }) {
           className="rounded-2xl p-3.5 text-left bg-[var(--card)] border border-white/5 transition-colors shadow-lg shadow-black/20 active:border-[var(--accent)]"
         >
           <div className="flex items-center justify-between">
-            <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${f.color}`}>
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-[var(--accent)]">
               {f.icono}
             </span>
             <span className="text-2xl font-bold tabular-nums">{conteos[f.id]}</span>
