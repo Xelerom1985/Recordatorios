@@ -28,13 +28,14 @@ exports.checkRecordatorios = onSchedule(
 
     for (const [id, r] of Object.entries(recordatorios)) {
       if (!r.recurrente && r.completado) continue
-      if (r.notificadoFecha === r.fecha) continue
+      const notificadoEn = `${r.fecha}T${r.hora}`
+      if (r.notificadoEn === notificadoEn) continue
       const fechaHora = new Date(`${r.fecha}T${r.hora || '00:00'}:00-03:00`).getTime()
       const horaAviso = fechaHora - MINUTOS_ANTICIPACION * 60000
       if (horaAviso > ahora) continue
 
       pendientes.push({ id, ...r })
-      actualizaciones[`recordatorios/${id}/notificadoFecha`] = r.fecha
+      actualizaciones[`recordatorios/${id}/notificadoEn`] = notificadoEn
     }
 
     logger.info(`pendientes=${pendientes.length}`, pendientes.map((r) => r.titulo))
@@ -51,6 +52,8 @@ exports.checkRecordatorios = onSchedule(
                 body: r.detalle ? `En ${MINUTOS_ANTICIPACION} minutos · ${r.detalle}` : `En ${MINUTOS_ANTICIPACION} minutos`,
               },
               data: { id: r.id },
+              android: { priority: 'high' },
+              webpush: { headers: { Urgency: 'high' } },
             })
             .then(() => ({ titulo: r.titulo, token, ok: true }))
             .catch((err) => {
