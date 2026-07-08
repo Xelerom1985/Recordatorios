@@ -3,7 +3,7 @@
 1. ~~Agregar perfil Personal y Laboral~~ (hecho 2026-07-08)
 2. ~~Botón Postergar~~ (hecho 2026-07-08)
 3. ~~Nueva reserva de horas: cambiar formato~~ (hecho 2026-07-08)
-4. Averiguar tema repeticiones por mes: si respeta día y horario
+4. ~~Averiguar tema repeticiones por mes: si respeta día y horario~~ (hecho 2026-07-08 — horario siempre se respetaba; había un bug real en el día para recordatorios del 29/30/31 que saltaba directo al mes siguiente, corregido)
 5. Averiguar cómo compartir la app con otra persona: ¿replica lo mismo o podemos generar 2 perfiles?
 6. Compartir recordatorios
 7. Botón para atrás dentro de una tarjeta, que vaya al home sin salir de la app
