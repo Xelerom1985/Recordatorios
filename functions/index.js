@@ -7,7 +7,7 @@ initializeApp()
 
 exports.checkRecordatorios = onSchedule(
   {
-    schedule: 'every 5 minutes',
+    schedule: 'every 1 minutes',
     timeZone: 'America/Argentina/Buenos_Aires',
     region: 'us-central1',
   },
@@ -25,7 +25,7 @@ exports.checkRecordatorios = onSchedule(
     for (const [id, r] of Object.entries(recordatorios)) {
       if (!r.recurrente && r.completado) continue
       if (r.notificadoFecha === r.fecha) continue
-      const fechaHora = new Date(`${r.fecha}T${r.hora || '00:00'}:00`).getTime()
+      const fechaHora = new Date(`${r.fecha}T${r.hora || '00:00'}:00-03:00`).getTime()
       if (fechaHora > ahora) continue
 
       pendientes.push(r)

@@ -39,6 +39,16 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (Notification?.permission === 'granted') {
+      activarNotificaciones()
+        .then((token) => {
+          if (token) setNotifPermitidas(true)
+        })
+        .catch((err) => console.error('No se pudo registrar el token de notificaciones:', err))
+    }
+  }, [])
+
+  useEffect(() => {
     const id = setInterval(() => {
       const nuevos = recordatoriosRef.current.filter(
         (r) => (!r.completado || r.recurrente) && estaVencido(r) && !avisadosRef.current.has(claveAviso(r)),
@@ -52,8 +62,13 @@ function App() {
   }, [])
 
   async function handleActivarNotif() {
-    const token = await activarNotificaciones()
-    if (token) setNotifPermitidas(true)
+    try {
+      const token = await activarNotificaciones()
+      if (token) setNotifPermitidas(true)
+    } catch (err) {
+      console.error(err)
+      alert(err.message)
+    }
   }
 
   function handleGuardar(datos) {

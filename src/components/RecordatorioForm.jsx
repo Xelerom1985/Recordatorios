@@ -2,7 +2,11 @@ import { useState } from 'react'
 import { useDictado } from '../utils/useDictado'
 import { parseVoz } from '../utils/parseVoz'
 
-const HOY = new Date().toISOString().slice(0, 10)
+function fechaLocalISO(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+const HOY = fechaLocalISO(new Date())
 
 export default function RecordatorioForm({ onGuardar, onCerrar, inicial }) {
   const [titulo, setTitulo] = useState(inicial?.titulo || '')

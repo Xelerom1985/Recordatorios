@@ -11,6 +11,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
+      workbox: {
+        importScripts: ['/firebase-messaging-sw.js'],
+      },
       manifest: {
         name: 'Recordatorios',
         short_name: 'Recordatorios',
