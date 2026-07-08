@@ -36,7 +36,11 @@ export function siguienteFecha(fecha, frecuencia) {
   const dt = new Date(y, m - 1, d)
   if (frecuencia === 'diario') dt.setDate(dt.getDate() + 1)
   else if (frecuencia === 'semanal') dt.setDate(dt.getDate() + 7)
-  else if (frecuencia === 'mensual') dt.setMonth(dt.getMonth() + 1)
+  else if (frecuencia === 'mensual') {
+    dt.setMonth(dt.getMonth() + 1, 1)
+    const ultimoDiaMes = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+    dt.setDate(Math.min(d, ultimoDiaMes))
+  }
   const yy = dt.getFullYear()
   const mm = String(dt.getMonth() + 1).padStart(2, '0')
   const dd = String(dt.getDate()).padStart(2, '0')
