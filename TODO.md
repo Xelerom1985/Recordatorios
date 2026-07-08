@@ -1,6 +1,6 @@
 # Pendientes — para retomar juntos, uno por uno
 
-1. Agregar perfil Personal y Laboral
+1. ~~Agregar perfil Personal y Laboral~~ (hecho 2026-07-08)
 2. Botón Postergar
 3. Nueva reserva de horas: cambiar formato
 4. Averiguar tema repeticiones por mes: si respeta día y horario
