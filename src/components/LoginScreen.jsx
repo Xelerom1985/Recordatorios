@@ -1,6 +1,20 @@
+import { useState } from 'react'
 import { iniciarSesionConGoogle } from '../firebase'
 
 export default function LoginScreen() {
+  const [error, setError] = useState(null)
+
+  async function handleClick() {
+    setError(null)
+    try {
+      await iniciarSesionConGoogle()
+    } catch (err) {
+      if (err.code !== 'auth/cancelled-popup-request' && err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message)
+      }
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center">
       <p className="text-4xl">⏰</p>
@@ -10,7 +24,7 @@ export default function LoginScreen() {
         cualquier equipo.
       </p>
       <button
-        onClick={iniciarSesionConGoogle}
+        onClick={handleClick}
         className="flex items-center gap-3 bg-white text-[#1f1f1f] font-medium px-5 py-3 rounded-full shadow-lg"
       >
         <svg width="20" height="20" viewBox="0 0 48 48">
@@ -33,6 +47,7 @@ export default function LoginScreen() {
         </svg>
         Iniciar sesión con Google
       </button>
+      {error && <p className="text-xs text-[var(--danger)] max-w-xs">{error}</p>}
     </div>
   )
 }

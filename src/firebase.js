@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getDatabase, ref, onValue, get, set, update, push, remove } from 'firebase/database'
 import { getMessaging, isSupported } from 'firebase/messaging'
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: "AIzaSyBVHv3KrABiUf0sdKG7v5URZQIAxbFJfe0",
@@ -25,8 +25,15 @@ export async function getMessagingIfSupported() {
 export const auth = getAuth(app)
 const googleProvider = new GoogleAuthProvider()
 
-export function iniciarSesionConGoogle() {
-  return signInWithRedirect(auth, googleProvider)
+export async function iniciarSesionConGoogle() {
+  try {
+    return await signInWithPopup(auth, googleProvider)
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+      return signInWithRedirect(auth, googleProvider)
+    }
+    throw err
+  }
 }
 
 export { getRedirectResult, onAuthStateChanged }
