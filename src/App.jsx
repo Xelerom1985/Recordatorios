@@ -342,12 +342,14 @@ function App() {
         <ResumenCards conteos={conteos} onSeleccionar={setVista} />
       ) : (
         <>
-          <div className="flex items-center gap-2 mb-4">
-            <button onClick={() => window.history.back()} aria-label="Volver" className="text-xl px-1 -ml-1">
-              ←
-            </button>
+          <button
+            onClick={() => window.history.back()}
+            aria-label="Volver"
+            className="flex items-center gap-2 mb-4 -ml-1 px-1 py-1"
+          >
+            <span className="text-xl">←</span>
             <h2 className="text-lg font-semibold">{tituloVista}</h2>
-          </div>
+          </button>
 
           {lista.length === 0 && (
             <p className="text-[var(--muted)] text-center mt-12">No tenés recordatorios acá.</p>
