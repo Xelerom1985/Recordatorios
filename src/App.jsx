@@ -40,6 +40,8 @@ function App() {
   const compartidosRef = useRef([])
   const avisadosRef = useRef(new Set())
   const inicializadoRef = useRef(false)
+  const capasPrevRef = useRef({ vista: null, form: false, postergar: false, avisoId: null })
+  const pendingEditRef = useRef(null)
 
   function rutaDe(r) {
     return r.perfil === 'compartido' ? `recordatorios_compartidos/${r.id}` : `recordatorios/${uid}/${r.id}`
@@ -164,6 +166,48 @@ function App() {
     return () => clearInterval(id)
   }, [])
 
+  // Registra un paso en el historial cada vez que se abre una "capa" (vista, formulario,
+  // postergar, aviso), así el botón/gesto de atrás del celular la cierra en vez de salir de la app.
+  useEffect(() => {
+    const prev = capasPrevRef.current
+    const avisoId = colaAvisos[0]?.id ?? null
+    if (vista !== null && prev.vista === null) window.history.pushState({}, '')
+    if (mostrarForm && !prev.form) window.history.pushState({}, '')
+    if (postergando && !prev.postergar) window.history.pushState({}, '')
+    if (avisoId !== null && avisoId !== prev.avisoId) window.history.pushState({}, '')
+    capasPrevRef.current = { vista, form: mostrarForm, postergar: !!postergando, avisoId }
+  }, [vista, mostrarForm, postergando, colaAvisos])
+
+  useEffect(() => {
+    function onPopState() {
+      if (postergando) {
+        const pendiente = pendingEditRef.current
+        pendingEditRef.current = null
+        setPostergando(null)
+        if (pendiente) {
+          setEditando(pendiente)
+          setMostrarForm(true)
+        }
+        return
+      }
+      if (mostrarForm) {
+        setMostrarForm(false)
+        setEditando(null)
+        return
+      }
+      if (colaAvisos.length > 0) {
+        setColaAvisos((cola) => cola.slice(1))
+        return
+      }
+      if (vista !== null) {
+        setVista(null)
+        return
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [vista, mostrarForm, postergando, colaAvisos])
+
   async function handleActivarNotif() {
     try {
       const token = await activarNotificaciones(uid, mostrarPopupPara)
@@ -181,8 +225,7 @@ function App() {
       const ruta = perfilActivo === 'compartido' ? 'recordatorios_compartidos' : `recordatorios/${uid}`
       push(ref(db, ruta), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
     }
-    setMostrarForm(false)
-    setEditando(null)
+    window.history.back()
   }
 
   function handleHecho(r) {
@@ -198,8 +241,8 @@ function App() {
   function handlePostergar(tipo, valor) {
     const r = postergando
     if (tipo === 'editar') {
-      setPostergando(null)
-      handleEditar(r)
+      pendingEditRef.current = r
+      window.history.back()
       return
     }
 
@@ -216,7 +259,7 @@ function App() {
     }
 
     update(ref(db, rutaDe(r)), { fecha, hora, notificadoEn: null, completado: false })
-    setPostergando(null)
+    window.history.back()
   }
 
   function handleEditar(r) {
@@ -300,7 +343,7 @@ function App() {
       ) : (
         <>
           <div className="flex items-center gap-2 mb-4">
-            <button onClick={() => setVista(null)} aria-label="Volver" className="text-xl px-1 -ml-1">
+            <button onClick={() => window.history.back()} aria-label="Volver" className="text-xl px-1 -ml-1">
               ←
             </button>
             <h2 className="text-lg font-semibold">{tituloVista}</h2>
@@ -366,22 +409,15 @@ function App() {
       </div>
 
       {mostrarForm && (
-        <RecordatorioForm
-          inicial={editando}
-          onGuardar={handleGuardar}
-          onCerrar={() => {
-            setMostrarForm(false)
-            setEditando(null)
-          }}
-        />
+        <RecordatorioForm inicial={editando} onGuardar={handleGuardar} onCerrar={() => window.history.back()} />
       )}
 
       {colaAvisos.length > 0 && (
-        <RecordatorioPopup r={colaAvisos[0]} onCerrar={() => setColaAvisos((cola) => cola.slice(1))} />
+        <RecordatorioPopup r={colaAvisos[0]} onCerrar={() => window.history.back()} />
       )}
 
       {postergando && (
-        <PostergarSheet r={postergando} onPostergar={handlePostergar} onCerrar={() => setPostergando(null)} />
+        <PostergarSheet r={postergando} onPostergar={handlePostergar} onCerrar={() => window.history.back()} />
       )}
 
       {needRefresh && <UpdateBanner onUpdate={() => updateServiceWorker(true)} />}
