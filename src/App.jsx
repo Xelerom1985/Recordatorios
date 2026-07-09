@@ -371,12 +371,14 @@ function App() {
       )}
 
       <div className="fixed bottom-0 inset-x-0 pb-6 pointer-events-none flex flex-col items-center gap-3">
-        <PerfilSwitcher
-          perfil={perfilActivo}
-          nombres={nombresPerfiles}
-          onCambiar={cambiarPerfil}
-          onRenombrar={renombrarPerfil}
-        />
+        <div className="mb-2">
+          <PerfilSwitcher
+            perfil={perfilActivo}
+            nombres={nombresPerfiles}
+            onCambiar={cambiarPerfil}
+            onRenombrar={renombrarPerfil}
+          />
+        </div>
         <div className="relative w-full max-w-[480px] mx-auto px-6 h-16 flex items-center justify-end">
           {grabandoRapido && (
             <p className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs text-[var(--danger)] whitespace-nowrap">
