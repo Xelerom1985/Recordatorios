@@ -14,7 +14,7 @@
 ## Ronda 2 (ideas propuestas 2026-07-09, para retomar)
 
 1. ~~Avisar al otro usuario cuando pasa algo en el perfil "Compartido" (crear/completar)~~ (hecho 2026-07-09 — nueva función `onCompartidoCambio`, dispara al crear o completar un recordatorio compartido, avisa al otro miembro con su nombre de Google. Confirmado funcionando en dispositivo real)
-2. Acciones rápidas en la notificación push misma (Postergar 10 min / Hecho) sin abrir la app
+2. ~~Acciones rápidas en la notificación push misma (Postergar 10 min / Hecho) sin abrir la app~~ (implementado 2026-07-09 — nueva función `accionRapida`, botones en la notificación. Falta confirmar en dispositivo real tocando los botones)
 3. Cambiar "Hecho" de confirmación previa a borrado + "Deshacer" por unos segundos (menos fricción, sigue siendo seguro)
 4. Repetición más flexible (cada X días, días de semana específicos), hoy solo diario/semanal/mensual fijo
 5. Buscador de recordatorios por texto
