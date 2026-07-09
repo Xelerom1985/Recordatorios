@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 
+const PERFILES = ['compartido', 'personal', 'laboral']
+
 const ESTILOS = {
   personal: {
     activo: 'bg-green-500 border-green-500 text-white',
@@ -9,6 +11,10 @@ const ESTILOS = {
     activo: 'bg-blue-500 border-blue-500 text-white',
     inactivo: 'border-blue-500 text-blue-500',
   },
+  compartido: {
+    activo: 'bg-violet-500 border-violet-500 text-white',
+    inactivo: 'border-violet-500 text-violet-500',
+  },
 }
 
 export default function PerfilSwitcher({ perfil, nombres, onCambiar, onRenombrar }) {
@@ -16,6 +22,7 @@ export default function PerfilSwitcher({ perfil, nombres, onCambiar, onRenombrar
   const presionoLargoRef = useRef(false)
 
   function iniciarPress(p) {
+    if (p === 'compartido') return
     presionoLargoRef.current = false
     timerRef.current = setTimeout(() => {
       presionoLargoRef.current = true
@@ -37,7 +44,7 @@ export default function PerfilSwitcher({ perfil, nombres, onCambiar, onRenombrar
 
   return (
     <div className="pointer-events-auto flex gap-3">
-      {['personal', 'laboral'].map((p) => (
+      {PERFILES.map((p) => (
         <button
           key={p}
           onClick={() => handleClick(p)}
@@ -48,7 +55,7 @@ export default function PerfilSwitcher({ perfil, nombres, onCambiar, onRenombrar
             ESTILOS[p][perfil === p ? 'activo' : 'inactivo']
           }`}
         >
-          {nombres[p]}
+          {p === 'compartido' ? 'Compartido' : nombres[p]}
         </button>
       ))}
     </div>

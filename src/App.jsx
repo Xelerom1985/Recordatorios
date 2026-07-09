@@ -36,8 +36,14 @@ function App() {
   const [perfilActivo, setPerfilActivoState] = useState(() => localStorage.getItem('perfilActivo') || 'personal')
   const { escuchando: grabandoRapido, soportado: dictadoSoportado, iniciar: iniciarDictadoRapido } = useDictado()
   const recordatoriosRef = useRef([])
+  const propiosRef = useRef([])
+  const compartidosRef = useRef([])
   const avisadosRef = useRef(new Set())
   const inicializadoRef = useRef(false)
+
+  function rutaDe(r) {
+    return r.perfil === 'compartido' ? `recordatorios_compartidos/${r.id}` : `recordatorios/${uid}/${r.id}`
+  }
 
   useEffect(() => {
     logDebug(`app cargada, standalone=${window.matchMedia('(display-mode: standalone)').matches}`)
@@ -53,18 +59,33 @@ function App() {
 
   const uid = usuario?.uid
 
+  function actualizarListaCombinada() {
+    const lista = [...propiosRef.current, ...compartidosRef.current]
+    setRecordatorios(lista)
+    recordatoriosRef.current = lista
+    if (!inicializadoRef.current) {
+      avisadosRef.current = new Set(lista.filter(estaVencido).map(claveAviso))
+      inicializadoRef.current = true
+    }
+  }
+
   useEffect(() => {
     if (!uid) return
     inicializadoRef.current = false
     const unsub = onValue(ref(db, `recordatorios/${uid}`), (snap) => {
       const data = snap.val() || {}
-      const lista = Object.entries(data).map(([id, r]) => ({ id, ...r }))
-      setRecordatorios(lista)
-      recordatoriosRef.current = lista
-      if (!inicializadoRef.current) {
-        avisadosRef.current = new Set(lista.filter(estaVencido).map(claveAviso))
-        inicializadoRef.current = true
-      }
+      propiosRef.current = Object.entries(data).map(([id, r]) => ({ id, ...r }))
+      actualizarListaCombinada()
+    })
+    return () => unsub()
+  }, [uid])
+
+  useEffect(() => {
+    if (!uid) return
+    const unsub = onValue(ref(db, 'recordatorios_compartidos'), (snap) => {
+      const data = snap.val() || {}
+      compartidosRef.current = Object.entries(data).map(([id, r]) => ({ id, ...r }))
+      actualizarListaCombinada()
     })
     return () => unsub()
   }, [uid])
@@ -120,7 +141,13 @@ function App() {
     if (!id) return
     window.history.replaceState(null, '', window.location.pathname)
     get(ref(db, `recordatorios/${uid}/${id}`)).then((snap) => {
-      if (snap.exists()) setColaAvisos((cola) => [...cola, { id, ...snap.val() }])
+      if (snap.exists()) {
+        setColaAvisos((cola) => [...cola, { id, ...snap.val() }])
+        return
+      }
+      get(ref(db, `recordatorios_compartidos/${id}`)).then((snap2) => {
+        if (snap2.exists()) setColaAvisos((cola) => [...cola, { id, ...snap2.val() }])
+      })
     })
   }, [uid])
 
@@ -149,9 +176,10 @@ function App() {
 
   function handleGuardar(datos) {
     if (editando) {
-      update(ref(db, `recordatorios/${uid}/${editando.id}`), datos)
+      update(ref(db, rutaDe(editando)), datos)
     } else {
-      push(ref(db, `recordatorios/${uid}`), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
+      const ruta = perfilActivo === 'compartido' ? 'recordatorios_compartidos' : `recordatorios/${uid}`
+      push(ref(db, ruta), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
     }
     setMostrarForm(false)
     setEditando(null)
@@ -159,11 +187,11 @@ function App() {
 
   function handleHecho(r) {
     if (r.recurrente) {
-      update(ref(db, `recordatorios/${uid}/${r.id}`), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
+      update(ref(db, rutaDe(r)), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
       return
     }
     if (confirm(`¿Marcar "${r.titulo}" como hecho? Se va a eliminar.`)) {
-      remove(ref(db, `recordatorios/${uid}/${r.id}`))
+      remove(ref(db, rutaDe(r)))
     }
   }
 
@@ -187,7 +215,7 @@ function App() {
       hora = r.hora
     }
 
-    update(ref(db, `recordatorios/${uid}/${r.id}`), { fecha, hora, notificadoEn: null, completado: false })
+    update(ref(db, rutaDe(r)), { fecha, hora, notificadoEn: null, completado: false })
     setPostergando(null)
   }
 
@@ -199,7 +227,8 @@ function App() {
   function handleGuardarPorVoz(texto) {
     const parsed = parseVoz(texto)
     if (!parsed.titulo) return
-    push(ref(db, `recordatorios/${uid}`), {
+    const ruta = perfilActivo === 'compartido' ? 'recordatorios_compartidos' : `recordatorios/${uid}`
+    push(ref(db, ruta), {
       titulo: parsed.titulo,
       detalle: null,
       fecha: parsed.fecha || fechaLocalISO(),
@@ -223,7 +252,7 @@ function App() {
   }
 
   function handleEliminar(r) {
-    if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, `recordatorios/${uid}/${r.id}`))
+    if (confirm(`¿Eliminar "${r.titulo}"?`)) remove(ref(db, rutaDe(r)))
   }
 
   if (usuario === undefined) return null
