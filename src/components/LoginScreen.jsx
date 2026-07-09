@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { iniciarSesionConGoogle } from '../firebase'
+import { leerDebug, limpiarDebug } from '../debugAuth'
 
 export default function LoginScreen() {
   const [error, setError] = useState(null)
+  const [debug, setDebug] = useState(leerDebug())
 
   async function handleClick() {
     setError(null)
@@ -13,6 +15,7 @@ export default function LoginScreen() {
         setError(err.message)
       }
     }
+    setDebug(leerDebug())
   }
 
   return (
@@ -48,6 +51,26 @@ export default function LoginScreen() {
         Iniciar sesión con Google
       </button>
       {error && <p className="text-xs text-[var(--danger)] max-w-xs">{error}</p>}
+
+      {debug.length > 0 && (
+        <div className="w-full max-w-xs text-left bg-[var(--bg2)] rounded-lg p-3 mt-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-[var(--muted)] font-semibold">Diagnóstico</p>
+            <button
+              onClick={() => {
+                limpiarDebug()
+                setDebug([])
+              }}
+              className="text-xs text-[var(--muted)] underline"
+            >
+              Limpiar
+            </button>
+          </div>
+          <pre className="text-[10px] leading-tight text-[var(--muted)] whitespace-pre-wrap break-all">
+            {debug.join('\n')}
+          </pre>
+        </div>
+      )}
     </div>
   )
 }

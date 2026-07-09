@@ -13,6 +13,7 @@ import PostergarSheet from './components/PostergarSheet'
 import PerfilSwitcher from './components/PerfilSwitcher'
 import UpdateBanner from './components/UpdateBanner'
 import LoginScreen from './components/LoginScreen'
+import { logDebug } from './debugAuth'
 
 const claveAviso = (r) => `${r.id}:${r.fecha}`
 const NOMBRES_POR_DEFECTO = { personal: 'Personal', laboral: 'Laboral' }
@@ -39,8 +40,14 @@ function App() {
   const inicializadoRef = useRef(false)
 
   useEffect(() => {
-    getRedirectResult(auth).catch((err) => console.error('Error al completar el login:', err))
-    const unsub = onAuthStateChanged(auth, (u) => setUsuario(u))
+    logDebug(`app cargada, standalone=${window.matchMedia('(display-mode: standalone)').matches}`)
+    getRedirectResult(auth)
+      .then((res) => logDebug(`getRedirectResult: uid=${res?.user?.uid?.slice(0, 6) || 'null'}`))
+      .catch((err) => logDebug(`getRedirectResult error: ${err.code}`))
+    const unsub = onAuthStateChanged(auth, (u) => {
+      logDebug(`onAuthStateChanged: uid=${u?.uid?.slice(0, 6) || 'null'}`)
+      setUsuario(u)
+    })
     return () => unsub()
   }, [])
 
