@@ -1,5 +1,6 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler')
 const { onValueWritten } = require('firebase-functions/v2/database')
+const { onRequest } = require('firebase-functions/v2/https')
 const { logger } = require('firebase-functions')
 const { initializeApp } = require('firebase-admin/app')
 const { getDatabase } = require('firebase-admin/database')
@@ -9,6 +10,30 @@ const { getAuth } = require('firebase-admin/auth')
 initializeApp()
 
 const MINUTOS_ANTICIPACION = 15
+
+function siguienteFecha(fecha, frecuencia) {
+  const [y, m, d] = fecha.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  if (frecuencia === 'diario') dt.setDate(dt.getDate() + 1)
+  else if (frecuencia === 'semanal') dt.setDate(dt.getDate() + 7)
+  else if (frecuencia === 'mensual') {
+    dt.setMonth(dt.getMonth() + 1, 1)
+    const ultimoDiaMes = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+    dt.setDate(Math.min(d, ultimoDiaMes))
+  }
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+}
+
+// Convierte un instante UTC a fecha/hora de reloj en Argentina (UTC-3 fijo, sin horario de verano)
+function fechaHoraArtDesde(ms) {
+  const dt = new Date(ms - 3 * 3600000)
+  const pad = (n) => String(n).padStart(2, '0')
+  return {
+    fecha: `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`,
+    hora: `${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}`,
+  }
+}
 
 function pendientesDe(recordatorios, ahora, rutaBase, actualizaciones) {
   const pendientes = []
@@ -39,7 +64,7 @@ async function enviarA(pendientes, tokens, tokenAUid, db) {
                 ? `En ${MINUTOS_ANTICIPACION} minutos · ${r.detalle}`
                 : `En ${MINUTOS_ANTICIPACION} minutos`,
             },
-            data: { id: r.id },
+            data: { id: r.id, perfil: r.perfil || '' },
             android: { priority: 'high' },
             webpush: { headers: { Urgency: 'high' } },
           })
@@ -171,3 +196,59 @@ exports.onCompartidoCambio = onValueWritten(
     logger.info('onCompartidoCambio: resultados', resultados)
   },
 )
+
+// Acción rápida disparada desde los botones de la notificación push (Postergar 10 min / Hecho),
+// sin necesidad de abrir la app. Verifica el ID token para saber quién llama de verdad (nunca
+// confiar en un uid que mande el cliente) y aplica las mismas reglas de acceso que database.rules.json.
+exports.accionRapida = onRequest({ region: 'us-central1', cors: true }, async (req, res) => {
+  if (req.method !== 'POST') return res.status(405).send('Method not allowed')
+
+  const authHeader = req.headers.authorization || ''
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+  if (!idToken) return res.status(401).send('Falta el token de autenticación')
+
+  let uid
+  try {
+    uid = (await getAuth().verifyIdToken(idToken)).uid
+  } catch {
+    return res.status(401).send('Token inválido')
+  }
+
+  const { id, perfil, accion } = req.body || {}
+  if (!id || !accion) return res.status(400).send('Faltan parámetros')
+
+  const db = getDatabase()
+  let ruta
+  if (perfil === 'compartido') {
+    const miembrosSnap = await db.ref('config_compartido/miembros').get()
+    if (!miembrosSnap.val()?.[uid]) return res.status(403).send('No sos miembro del perfil compartido')
+    ruta = `recordatorios_compartidos/${id}`
+  } else {
+    ruta = `recordatorios/${uid}/${id}`
+  }
+
+  const snap = await db.ref(ruta).get()
+  const r = snap.val()
+  if (!r) return res.status(404).send('No se encontró el recordatorio')
+
+  if (accion === 'postergar10') {
+    const { fecha, hora } = fechaHoraArtDesde(Date.now() + 10 * 60000)
+    await db.ref(ruta).update({ fecha, hora, notificadoEn: null, completado: false })
+  } else if (accion === 'hecho') {
+    if (r.recurrente) {
+      await db.ref(ruta).update({
+        fecha: siguienteFecha(r.fecha, r.frecuencia),
+        completadoPor: uid,
+        ultimoCompletadoEn: Date.now(),
+      })
+    } else if (perfil === 'compartido') {
+      await db.ref(ruta).update({ completado: true, completadoPor: uid })
+    } else {
+      await db.ref(ruta).remove()
+    }
+  } else {
+    return res.status(400).send('Acción desconocida')
+  }
+
+  res.status(200).send('OK')
+})

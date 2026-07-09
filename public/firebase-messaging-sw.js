@@ -1,4 +1,5 @@
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js')
 
 firebase.initializeApp({
@@ -17,15 +18,44 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(payload.notification?.title || 'Recordatorio', {
     body: payload.notification?.body,
     icon: '/icon-192.png',
-    data: { id: payload.data?.id },
+    data: { id: payload.data?.id, perfil: payload.data?.perfil },
+    actions: [
+      { action: 'postergar10', title: 'Postergar 10 min' },
+      { action: 'hecho', title: 'Hecho' },
+    ],
   })
 })
 
+async function usuarioActual() {
+  return new Promise((resolve) => {
+    const unsub = firebase.auth().onAuthStateChanged((u) => {
+      unsub()
+      resolve(u)
+    })
+  })
+}
+
+async function accionRapida(id, perfil, accion) {
+  const usuario = await usuarioActual()
+  if (!usuario || !id) return
+  const token = await usuario.getIdToken()
+  await fetch('https://us-central1-recordatorios-faf.cloudfunctions.net/accionRapida', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ id, perfil, accion }),
+  })
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const id = event.notification.data?.id
-  const url = id ? `/?r=${id}` : '/'
+  const { id, perfil } = event.notification.data || {}
 
+  if (event.action === 'postergar10' || event.action === 'hecho') {
+    event.waitUntil(accionRapida(id, perfil, event.action))
+    return
+  }
+
+  const url = id ? `/?r=${id}` : '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((lista) => {
       for (const cliente of lista) {
