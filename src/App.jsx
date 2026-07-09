@@ -223,14 +223,24 @@ function App() {
       update(ref(db, rutaDe(editando)), datos)
     } else {
       const ruta = perfilActivo === 'compartido' ? 'recordatorios_compartidos' : `recordatorios/${uid}`
-      push(ref(db, ruta), { ...datos, perfil: perfilActivo, completado: false, createdAt: Date.now() })
+      push(ref(db, ruta), { ...datos, perfil: perfilActivo, completado: false, creadoPor: uid, createdAt: Date.now() })
     }
     window.history.back()
   }
 
   function handleHecho(r) {
     if (r.recurrente) {
-      update(ref(db, rutaDe(r)), { fecha: siguienteFecha(r.fecha, r.frecuencia) })
+      update(ref(db, rutaDe(r)), {
+        fecha: siguienteFecha(r.fecha, r.frecuencia),
+        completadoPor: uid,
+        ultimoCompletadoEn: Date.now(),
+      })
+      return
+    }
+    if (r.perfil === 'compartido') {
+      if (confirm(`¿Marcar "${r.titulo}" como hecho?`)) {
+        update(ref(db, rutaDe(r)), { completado: true, completadoPor: uid })
+      }
       return
     }
     if (confirm(`¿Marcar "${r.titulo}" como hecho? Se va a eliminar.`)) {
@@ -280,6 +290,7 @@ function App() {
       frecuencia: parsed.recurrente ? parsed.frecuencia : null,
       perfil: perfilActivo,
       completado: false,
+      creadoPor: uid,
       createdAt: Date.now(),
     })
     setAvisoGuardado(true)
